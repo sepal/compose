@@ -1,0 +1,20 @@
+machine:
+  services:
+    - docker
+
+checkout:
+  post:
+  - git clone https://github.com/iamdork/tests.git tests
+
+dependencies:
+  pre:
+  - sudo add-apt-repository -y ppa:duggan/bats
+  - sudo apt-get update
+  - sudo apt-get install -y bats
+  post:
+  - pip install -e compose/
+  - cd tests/
+
+test:
+  override:
+  - bats tests/simple.bats
