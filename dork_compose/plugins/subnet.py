@@ -121,14 +121,14 @@ class Subnet:
 
         to_add = [0] * part
         to_add.append(1)
-        to_add = to_add + [0] * (4-len(to_add))
+        to_add = to_add + [0] * (4 - len(to_add))
 
         tmp = Subnet.__add_ips(self.last, to_add)
 
         ip = []
         carry = 0
         for x in reversed(tmp):
-            if carry>0:
+            if carry > 0:
                 sum = x + carry
                 if sum > 255:
                     ip.insert(0, 0)
@@ -170,17 +170,20 @@ class Plugin(dork_compose.plugin.Plugin):
     """
     default_subnet = Subnet("172.20.0.0/24")
 
-    def preprocess_config(self, config):
+    def initializing(self, project, service_names=None):
         subnet = self.__get_free_subnet()
-
-        # todo: add new network section to config and services
+        project.networks.networks['default'].ipam = {
+            'Driver': 'default',
+            'Config': [
+                {'Subnet': str(subnet)},
+            ]
+        }
 
     def __get_free_subnet(self):
         client = docker_client(self.env)
         subnets = []
         for network in client.networks():
             for config in network['IPAM']['Config']:
-                print(config['Subnet'])
                 subnets.append(Subnet(config['Subnet']))
 
         res = self.default_subnet
@@ -195,5 +198,3 @@ class Plugin(dork_compose.plugin.Plugin):
                     overlaps = False
 
         return res
-
-
