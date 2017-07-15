@@ -166,12 +166,14 @@ class Subnet:
 
 class Plugin(dork_compose.plugin.Plugin):
     """
-    This plugin allows to inject a subnet
+    This allows to override the default subnet pool for projects.
     """
-    default_subnet = Subnet("172.20.0.0/24")
 
     def initializing(self, project, service_names=None):
+        # Get a free subnet
         subnet = self.__get_free_subnet()
+
+        # Inject it into network config.
         project.networks.networks['default'].ipam = {
             'Driver': 'default',
             'Config': [
@@ -181,15 +183,24 @@ class Plugin(dork_compose.plugin.Plugin):
 
     def __get_free_subnet(self):
         client = docker_client(self.env)
+
         subnets = []
+        # List all networks and save them as Subnet object into a list.
         for network in client.networks():
             for config in network['IPAM']['Config']:
                 subnets.append(Subnet(config['Subnet']))
 
+        # Find a suitable network, by checking going through all possibilities
+        # until a network doesn't overlaps with an existing one.
+        # todo: Improve algorithm, so that it doesn't searches forever.
         res = self.default_subnet
         overlaps = True
         while overlaps:
+            # Test if the selected network overlaps with existing ones.
             for subnet in subnets:
+                # if it overlaps, then set overlaps then get the next possible
+                # networks and stop testing against the rest of the existing
+                # networks.
                 if subnet.overlaps(res):
                     overlaps = True
                     res = res.next_net
@@ -198,3 +209,7 @@ class Plugin(dork_compose.plugin.Plugin):
                     overlaps = False
 
         return res
+
+    @property
+    def default_subnet(self):
+        return Subnet(self.env.get('DORK_SUBNET_DEFAULT', '172.20.0.0/24'))
